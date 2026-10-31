@@ -23,4 +23,17 @@
 #### Where we at the building process?
 > Integrated the sound feature of name calling to the system.
 
+#### What is in the order of execution?
+> Building a student webpage with authentication having features as:
+    1. Attendance tracking.
+    2. Scanning the dynamic QR to register the attandance.
+> Upgrading the QR mechanism to Dynamic QR verification system.
 
+
+#### Tasks:
+* study the dynamic qr scanning mechanism used in Mo Bus.
+* write the real time algorithm for dynamic qr scanning.
+* designing the backend.
+    * API
+    * DB schema
+    * Frontend (dynamic and 3d)
