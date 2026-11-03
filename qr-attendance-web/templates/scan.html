@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block body %}<h1>Scan class QR</h1>
+<video id="v" playsinline muted></video><canvas id="c" hidden></canvas>
+<div class="card" id="res" role="status" aria-live="polite">Point your camera at the teacher's screen.</div>
+<a class="btn ghost" href="/student">Back to my attendance</a>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script>
+const v=document.getElementById('v'),c=document.getElementById('c'),res=document.getElementById('res'),ctx=c.getContext('2d',{willReadFrequently:true});let busy=false,done=false;
+navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}}}).then(s=>{v.srcObject=s;v.play();loop()})
+ .catch(()=>res.textContent='Camera blocked. Allow camera access (the page must use HTTPS) and reload.');
+async function submit(p){busy=true;const r=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:p})});
+  const j=await r.json();res.innerHTML=`<b class="${j.ok?'P':'A'}">${j.ok?'Done':'Not marked'}</b> ${j.msg}`;
+  if(j.ok){done=true;v.srcObject.getTracks().forEach(t=>t.stop());navigator.vibrate&&navigator.vibrate(120)}else setTimeout(()=>busy=false,600)}
+function loop(){if(done)return;if(!busy&&v.videoWidth){c.width=v.videoWidth;c.height=v.videoHeight;ctx.drawImage(v,0,0);
+  const d=ctx.getImageData(0,0,c.width,c.height),k=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+  if(k&&k.data.startsWith('SQA1.'))submit(k.data)}requestAnimationFrame(loop)}
+</script>{% endblock %}

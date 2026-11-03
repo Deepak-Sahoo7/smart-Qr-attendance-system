@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block body %}<h1>My attendance</h1>
+{% if live %}<div class="card row"><div><b>Class in session:</b> {{ live|map(attribute='name')|join(', ') }}</div><a class="btn" href="/student/scan">Scan to mark attendance</a></div>
+{% else %}<div class="card row"><span class="mut">No class is taking attendance right now.</span><a class="btn ghost" href="/student/scan">Open scanner</a></div>{% endif %}
+{% for s in subjects %}<a href="/student/report/{{ s.id }}" style="text-decoration:none;color:inherit"><div class="card row">
+<div><h2 style="margin:0">{{ s.name }}</h2><span class="mut">{{ s.attended }} of {{ s.total }} classes</span></div>
+<div style="text-align:right"><div class="pct">{{ s.pct }}%</div><div class="bar {{ 'low' if s.pct<75 }}"><i style="width:{{ s.pct }}%"></i></div></div></div></a>
+{% else %}<p class="mut">You aren't enrolled in any subject yet. Ask your teacher to upload the roster with your roll number.</p>{% endfor %}{% endblock %}

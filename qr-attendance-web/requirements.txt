@@ -1,0 +1,6 @@
+flask
+pandas
+openpyxl
+pyopenssl
+qrcode
+pywin32; sys_platform == "win32"

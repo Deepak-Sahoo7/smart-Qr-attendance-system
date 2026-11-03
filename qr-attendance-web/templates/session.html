@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}
+<div class="row"><h1>{{ s.subject }}</h1><form method="post" action="/teacher/session/{{ s.id }}/end"><button class="danger">End session</button></form></div>
+<p class="mut">Students scan this live code from the student app. It changes every {{ slot_ms/1000 }} s, so photos and screenshots stop working.</p>
+<div id="qr" aria-label="Live attendance QR code"></div>
+<div class="card" style="margin-top:16px"><h2><span id="cnt">0</span> of <span id="tot">0</span> present</h2><ul class="plain" id="list"></ul></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+const SID={{ s.id }};let tokens={},offset=0,SLOT=500,last=-1;
+async function refill(){const t0=Date.now();const r=await (await fetch(`/api/session/${SID}/tokens`)).json();
+  if(r.ended){location="/teacher";return}
+  offset=r.server_ms-(t0+Date.now())/2;SLOT=r.slot_ms;Object.assign(tokens,r.tokens)}
+function tick(){const slot=Math.floor((Date.now()+offset)/SLOT);
+  if(slot!==last&&tokens[slot]){last=slot;const q=qrcode(0,'M');q.addData(`SQA1.${SID}.${slot}.${tokens[slot]}`);q.make();
+    document.getElementById('qr').innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true})}
+  requestAnimationFrame(tick)}
+async function poll(){const r=await (await fetch(`/api/session/${SID}/live`)).json();
+  cnt.textContent=r.present.length;tot.textContent=r.total;
+  list.innerHTML=r.present.map(p=>`<li>${p.roll_no} · ${p.name.replace(/</g,'&lt;')}</li>`).join('')||'<li class="mut">Waiting for the first scan…</li>'}
+refill().then(()=>{tick();setInterval(refill,8000);poll();setInterval(poll,2000)});
+</script>{% endblock %}

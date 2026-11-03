@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block body %}<a href="/student" class="mut">&larr; All subjects</a><h1>{{ sub.name }}</h1>
+<div class="card row"><div><div class="pct">{{ pct }}%</div><span class="mut">{{ n }} present out of {{ total }} classes</span></div>
+{% if pct<75 and total %}<b class="A">Below 75%</b>{% endif %}</div>
+<div class="card"><ul class="plain">{% for h in hist %}<li class="row"><span>{{ h.date }}</span><span class="{{ 'P' if h.present else 'A' }}">{{ 'Present' if h.present else 'Absent' }}</span></li>
+{% else %}<li class="mut">No classes held yet.</li>{% endfor %}</ul></div>{% endblock %}

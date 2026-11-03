@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}<h1>Your subjects</h1>
+{% for s in subjects %}<div class="card"><div class="row"><div><h2 style="margin:0">{{ s.name }}</h2>
+<span class="mut">{{ s.n_students }} students · {{ s.n_sessions }} sessions</span></div>
+<form method="post" action="/teacher/subject/{{ s.id }}/start"><button>{{ 'Resume live QR' if s.live_id else 'Start attendance' }}</button></form></div>
+<hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+<div class="row"><form class="inline row" method="post" enctype="multipart/form-data" action="/teacher/subject/{{ s.id }}/roster">
+<input type="file" name="file" accept=".xlsx" required><button class="ghost">Upload roster (.xlsx)</button></form>
+<a class="btn ghost" href="/teacher/subject/{{ s.id }}/export.xlsx">Download Excel report</a></div></div>
+{% else %}<p class="mut">No subjects yet. Add your first one below.</p>{% endfor %}
+<form method="post" action="/teacher/subject" class="card inline row"><input name="name" placeholder="New subject name" required><button>Add subject</button></form>{% endblock %}

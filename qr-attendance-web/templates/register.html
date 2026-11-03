@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}<h1>Student sign-up</h1><form method="post" class="card">
+<label>Full name<input name="name" required></label><label>Roll number<input name="roll_no" required></label>
+<label>Username<input name="username" required></label><label>Password<input name="password" type="password" minlength="6" required></label>
+<button>Create account</button> <a class="btn ghost" href="/login">Back to log in</a></form>{% endblock %}

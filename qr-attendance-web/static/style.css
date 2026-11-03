@@ -1,0 +1,19 @@
+:root{--bg:#eef1ec;--ink:#1b2a2f;--mut:#5d6b6e;--card:#fff;--line:#d5dcd6;--acc:#0f766e;--bad:#b4401a;--ok:#177a45}
+@media(prefers-color-scheme:dark){:root{--bg:#121a1c;--ink:#e6edea;--mut:#93a3a4;--card:#1b2629;--line:#2b393c;--acc:#4fd1c0;--bad:#f08a5d;--ok:#5fd68f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+header b{font-size:1.1rem}header a{color:var(--mut);text-decoration:none;margin-left:16px}
+main{max-width:760px;margin:0 auto;padding:24px 16px}h1{font-size:1.6rem;margin:0 0 16px}h2{font-size:1.1rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+input{width:100%;padding:10px;margin:4px 0 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.inline input{width:auto;margin:0}
+button,.btn{background:var(--acc);color:var(--bg);border:0;border-radius:6px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost,button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button.danger{background:var(--bad)}:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.flash{background:var(--card);border-left:4px solid var(--acc);padding:10px 14px;margin-bottom:12px}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:140px}.bar i{display:block;height:100%;background:var(--acc)}
+.bar.low i{background:var(--bad)}.pct{font-size:1.8rem;font-weight:700}.mut{color:var(--mut)}
+.P{color:var(--ok);font-weight:700}.A{color:var(--bad);font-weight:700}
+#qr{background:#fff;padding:16px;border-radius:12px;width:min(78vw,460px);margin:0 auto}#qr svg{width:100%;height:auto;display:block}
+video{width:100%;border-radius:10px;background:#000}ul.plain{list-style:none;padding:0;margin:0}ul.plain li{padding:6px 0;border-bottom:1px solid var(--line)}
