@@ -1,5 +1,7 @@
 """Dynamic-QR attendance: Flask + SQLite. Run: python app.py  (demo data seeded on first run)"""
 import hmac, hashlib, io, os, secrets, sqlite3, time
+from collections import defaultdict, deque
+from werkzeug.middleware.proxy_fix import ProxyFix
 from functools import wraps
 import pandas as pd
 from flask import (Flask, g, redirect, render_template, request, send_file,
@@ -7,12 +9,23 @@ from flask import (Flask, g, redirect, render_template, request, send_file,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 SLOT_MS = 500          # QR changes every 0.5 s
-GRACE_SLOTS = 3        # accept codes up to 1.5 s old (camera + network latency)
+GRACE_SLOTS = int(os.environ.get("GRACE_SLOTS", 4))   # codes up to ~2 s old are accepted (phone + network latency)
 CHECK_IP = os.environ.get("CHECK_IP", "0") == "1"   # require student on teacher's network
 DB = os.environ.get("DB_PATH", "attendance.db")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+ON_RENDER = bool(os.environ.get("RENDER"))
+if ON_RENDER and not os.environ.get("SECRET_KEY"): raise SystemExit("SECRET_KEY must be set in production")
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-secret")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)     # real client IP / https behind the host's proxy
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=ON_RENDER)
+INVITE = os.environ.get("FACULTY_INVITE", "")                 # secret code that lets a faculty member self-register
+HITS = defaultdict(deque)
+def limited(key, n, per):
+    now = time.time(); d = HITS[key]
+    while d and now - d[0] > per: d.popleft()
+    if len(d) >= n: return True
+    d.append(now); return False
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, pw TEXT,
@@ -25,9 +38,32 @@ CREATE TABLE IF NOT EXISTS attendance(session_id INTEGER, student_id INTEGER, ma
   UNIQUE(session_id, student_id));
 """
 
+PG = bool(os.environ.get("DATABASE_URL"))
+if PG:
+    import psycopg2, psycopg2.extras
+    DBERR = (sqlite3.IntegrityError, psycopg2.IntegrityError)
+else:
+    DBERR = (sqlite3.IntegrityError,)
+
+def connect():
+    if PG: return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=psycopg2.extras.RealDictCursor)
+    c = sqlite3.connect(DB, timeout=10); c.row_factory = sqlite3.Row; return c
+
+def fix(sql):                      # one SQL dialect for both SQLite (local) and Postgres (hosted)
+    if not PG: return sql
+    sql = sql.replace("?", "%s")
+    if sql.lstrip().upper().startswith("INSERT OR IGNORE"):
+        sql = sql.replace("INSERT OR IGNORE", "INSERT", 1) + " ON CONFLICT DO NOTHING"
+    return sql
+
+def exe(c, sql, a=(), ret=False):
+    sql = fix(sql)
+    if PG:
+        cur = c.cursor(); cur.execute(sql + (" RETURNING id" if ret else ""), a); return cur
+    return c.execute(sql, a)
+
 def db():
-    if "db" not in g:
-        g.db = sqlite3.connect(DB); g.db.row_factory = sqlite3.Row
+    if "db" not in g: g.db = connect()
     return g.db
 
 @app.teardown_appcontext
@@ -35,10 +71,15 @@ def close_db(_):
     d = g.pop("db", None)
     if d: d.close()
 
-def q(sql, *a): return db().execute(sql, a).fetchall()
-def q1(sql, *a): return db().execute(sql, a).fetchone()
-def run(sql, *a):
-    c = db().execute(sql, a); db().commit(); return c
+def q(sql, *a): return exe(db(), sql, a).fetchall()
+def q1(sql, *a): return exe(db(), sql, a).fetchone()
+class R:
+    def __init__(s, cur, ret): s.rowcount = cur.rowcount; s.lastrowid = (cur.fetchone()["id"] if PG else cur.lastrowid) if ret else None
+def run(sql, *a, ret=False):
+    r = R(exe(db(), sql, a, ret), ret); db().commit(); return r
+
+@app.get("/healthz")
+def healthz(): return "ok"
 
 def login_required(role):
     def deco(f):
@@ -63,6 +104,8 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        if limited(("login", request.remote_addr), 10, 60):
+            flash("Too many attempts. Wait a minute."); return render_template("login.html")
         u = q1("SELECT * FROM users WHERE username=?", request.form["username"].strip())
         if u and check_password_hash(u["pw"], request.form["password"]):
             session.clear(); session.update(uid=u["id"], role=u["role"], name=u["name"])
@@ -74,14 +117,18 @@ def login():
 def register():
     if request.method == "POST":
         f = request.form
+        teacher = bool(INVITE) and hmac.compare_digest(f.get("invite", "").strip(), INVITE)
+        roll = f.get("roll_no", "").strip() or None
+        if not teacher and not roll:
+            flash("Roll number is required for students."); return render_template("register.html", invite=bool(INVITE))
         try:
             run("INSERT INTO users(username,pw,name,role,roll_no) VALUES(?,?,?,?,?)",
                 f["username"].strip(), generate_password_hash(f["password"]), f["name"].strip(),
-                "student", f["roll_no"].strip())
+                "teacher" if teacher else "student", None if teacher else roll)
             flash("Account created. Log in to continue."); return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
-            flash("That username or roll number is already registered.")
-    return render_template("register.html")
+        except DBERR:
+            db().rollback(); flash("That username or roll number is already registered.")
+    return render_template("register.html", invite=bool(INVITE))
 
 @app.route("/logout")
 def logout():
@@ -131,7 +178,7 @@ def start_session(sid):
     live = q1("SELECT id FROM sessions WHERE subject_id=? AND ended_at IS NULL", sid)
     if live: return redirect(url_for("live_session", xid=live["id"]))
     c = run("INSERT INTO sessions(subject_id,secret,started_at,teacher_ip) VALUES(?,?,?,?)",
-            sid, secrets.token_hex(16), time.time(), request.remote_addr)
+            sid, secrets.token_hex(16), time.time(), request.remote_addr, ret=True)
     return redirect(url_for("live_session", xid=c.lastrowid))
 
 def own_session(xid):
@@ -231,6 +278,7 @@ def scan_page():
 @app.post("/api/scan")
 @login_required("student")
 def scan():
+    if limited(("scan", session["uid"]), 40, 10): return jsonify(ok=False, msg="Slow down."), 429
     try:
         tag, sid, slot, sig = (request.get_json()["payload"]).split(".")
         sid, slot = int(sid), int(slot)
@@ -252,14 +300,18 @@ def scan():
     return jsonify(ok=True, msg=f"Attendance marked for {subj}." if c.rowcount else f"Already marked for {subj}.")
 
 def init():
-    with sqlite3.connect(DB) as c:
-        c.executescript(SCHEMA)
-        if not c.execute("SELECT 1 FROM users").fetchone():   # demo data
-            c.execute("INSERT INTO users(username,pw,name,role) VALUES('teacher',?,'Demo Teacher','teacher')",
-                      (generate_password_hash("teacher123"),))
-            c.execute("INSERT INTO subjects(name,teacher_id) VALUES('Data Structures',1)")
+    ddl = SCHEMA.replace("INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY").replace("REAL", "DOUBLE PRECISION") if PG else SCHEMA
+    c = connect()
+    for stmt in ddl.split(";"):
+        if stmt.strip(): exe(c, stmt)
+    u, p = os.environ.get("FACULTY_USER"), os.environ.get("FACULTY_PASS")   # first faculty account (no shell on free hosts)
+    if u and p:
+        exe(c, "INSERT OR IGNORE INTO users(username,pw,name,role) VALUES(?,?,?,'teacher')",
+            (u, generate_password_hash(p), os.environ.get("FACULTY_NAME", "Faculty")))
+    c.commit(); c.close()
+
+init()   # runs once at import (gunicorn --preload)
 
 if __name__ == "__main__":
-    init()
-    # Phones only allow camera access on HTTPS. 'adhoc' needs: pip install pyopenssl
-    app.run(host="0.0.0.0", port=5000, ssl_context="adhoc" if os.environ.get("HTTPS") == "1" else None)
+    # Local use: phones need HTTPS for the camera -> HTTPS=1 (needs pyopenssl), or use a tunnel / the hosted site.
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), ssl_context="adhoc" if os.environ.get("HTTPS") == "1" else None)

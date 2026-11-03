@@ -1,0 +1,4 @@
+# extra packages for the faculty desktop app only
+qrcode
+pyopenssl
+pywin32; sys_platform == "win32"
