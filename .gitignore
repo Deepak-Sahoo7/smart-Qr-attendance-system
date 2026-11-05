@@ -1,6 +1,3 @@
-*__pycache__/
-*assets/
-*qrcodes/
+__pycache__/
 *.db
-/assets
-*.xlsx
+.env

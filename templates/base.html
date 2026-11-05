@@ -1,0 +1,4 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}QR Attendance{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
+<header><b>QR Attendance</b><nav>{% if session.role %}<span class="mut">{{ session.name }}</span><a href="/">Home</a><a href="/logout">Log out</a>{% endif %}</nav></header>
+<main>{% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}{% block body %}{% endblock %}</main></body></html>
