@@ -15,5 +15,5 @@ button.danger{background:var(--bad)}:focus-visible{outline:3px solid var(--acc);
 .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:140px}.bar i{display:block;height:100%;background:var(--acc)}
 .bar.low i{background:var(--bad)}.pct{font-size:1.8rem;font-weight:700}.mut{color:var(--mut)}
 .P{color:var(--ok);font-weight:700}.A{color:var(--bad);font-weight:700}
-#qr{background:#fff;padding:16px;border-radius:12px;width:min(78vw,460px);margin:0 auto}#qr svg{width:100%;height:auto;display:block}
+#qr{background:#fff;padding:8px;border-radius:12px;width:min(78vw,460px);margin:0 auto}#qr svg{width:100%;height:auto;display:block}
 video{width:100%;border-radius:10px;background:#000}ul.plain{list-style:none;padding:0;margin:0}ul.plain li{padding:6px 0;border-bottom:1px solid var(--line)}

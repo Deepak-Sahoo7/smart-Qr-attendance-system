@@ -1,16 +1,51 @@
 {% extends "base.html" %}{% block body %}<h1>Scan class QR</h1>
 <video id="v" playsinline muted></video><canvas id="c" hidden></canvas>
-<div class="card" id="res" role="status" aria-live="polite">Point your camera at the teacher's screen.</div>
+<p class="mut" id="st">Starting camera…</p>
+<div class="card" id="res" role="status" aria-live="polite">Point your camera at the faculty screen. Keep the whole QR inside the frame.</div>
 <a class="btn ghost" href="/student">Back to my attendance</a>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='jsQR.js') }}"></script>
 <script>
-const v=document.getElementById('v'),c=document.getElementById('c'),res=document.getElementById('res'),ctx=c.getContext('2d',{willReadFrequently:true});let busy=false,done=false;
-navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}}}).then(s=>{v.srcObject=s;v.play();loop()})
- .catch(()=>res.textContent='Camera blocked. Allow camera access (the page must use HTTPS) and reload.');
-async function submit(p){busy=true;const r=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:p})});
-  const j=await r.json();res.innerHTML=`<b class="${j.ok?'P':'A'}">${j.ok?'Done':'Not marked'}</b> ${j.msg}`;
-  if(j.ok){done=true;v.srcObject.getTracks().forEach(t=>t.stop());navigator.vibrate&&navigator.vibrate(120)}else setTimeout(()=>busy=false,600)}
-function loop(){if(done)return;if(!busy&&v.videoWidth){c.width=v.videoWidth;c.height=v.videoHeight;ctx.drawImage(v,0,0);
-  const d=ctx.getImageData(0,0,c.width,c.height),k=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
-  if(k&&k.data.startsWith('SQA1.'))submit(k.data)}requestAnimationFrame(loop)}
+const v=document.getElementById('v'),c=document.getElementById('c'),res=document.getElementById('res'),st=document.getElementById('st'),
+      ctx=c.getContext('2d',{willReadFrequently:true});
+let busy=false,done=false,frames=0,bd=null;
+try{if('BarcodeDetector' in window)bd=new BarcodeDetector({formats:['qr_code']})}catch(e){bd=null}
+async function start(){
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}}});
+    v.srcObject=s;await v.play();st.textContent='Camera on. Hold steady and fill the frame with the QR.';loop();
+  }catch(e){
+    st.textContent='';
+    res.textContent=window.isSecureContext?'Camera unavailable. Allow camera permission for this site, then reload.':'This page must be opened with https:// to use the camera.';
+  }
+}
+function show(ok,msg){res.innerHTML=`<b class="${ok?'P':'A'}">${ok?'Done':'Not marked'}</b> `;res.append(msg)}
+async function submit(p){
+  busy=true;let ok=false;
+  try{
+    const r=await fetch('/api/scan',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({payload:p})});
+    let j;try{j=await r.json()}catch(_){j={ok:false,msg:`Server problem (HTTP ${r.status}). Try again in a few seconds.`}}
+    ok=j.ok;show(ok,j.msg);if(r.status===401)setTimeout(()=>location='/login',1500);
+  }catch(e){show(false,'No connection to the server. Check your internet and keep scanning.')}
+  if(ok){done=true;v.srcObject.getTracks().forEach(t=>t.stop());st.textContent='';navigator.vibrate&&navigator.vibrate(120)}
+  else setTimeout(()=>busy=false,500);
+}
+async function decode(){
+  if(bd){try{const r=await bd.detect(v);return r.length?r[0].rawValue:null}catch(e){bd=null}}
+  if(typeof jsQR==='undefined')throw new Error('scanner library missing');
+  const w=Math.min(v.videoWidth,640),h=Math.round(v.videoHeight*w/v.videoWidth);c.width=w;c.height=h;ctx.drawImage(v,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h),k=jsQR(d.data,w,h,{inversionAttempts:'dontInvert'});return k?k.data:null;
+}
+async function loop(){
+  if(done)return;
+  if(!busy&&v.videoWidth){
+    try{
+      const t=await decode();frames++;
+      if(t&&t.startsWith('SQA1.'))submit(t);
+      else if(t)st.textContent='That QR is not an attendance code.';
+      else if(frames%15===0)st.textContent='Scanning… no QR found yet. Move closer, raise screen brightness.';
+    }catch(e){st.textContent='';res.textContent='Scanner could not start: '+e.message;return}
+  }
+  requestAnimationFrame(loop);
+}
+start();
 </script>{% endblock %}

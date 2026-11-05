@@ -134,7 +134,7 @@ class Desk(tk.Tk):
         s.after(30, s.tick)
 
     def draw(s, text):
-        q = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=2); q.add_data(text); q.make(fit=True)
+        q = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4); q.add_data(text); q.make(fit=True)
         m = q.get_matrix(); n = len(m); px = s.QR // n; off = (s.QR - px * n) // 2
         s.qr.delete("all"); s.qr.create_rectangle(0, 0, s.QR, s.QR, fill="white", outline="")
         for y, row in enumerate(m):

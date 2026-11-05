@@ -9,7 +9,7 @@ from flask import (Flask, g, redirect, render_template, request, send_file,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 SLOT_MS = 500          # QR changes every 0.5 s
-GRACE_SLOTS = int(os.environ.get("GRACE_SLOTS", 4))   # codes up to ~2 s old are accepted (phone + network latency)
+GRACE_SLOTS = int(os.environ.get("GRACE_SLOTS", 6))   # codes up to ~2 s old are accepted (phone + network latency)
 CHECK_IP = os.environ.get("CHECK_IP", "0") == "1"   # require student on teacher's network
 DB = os.environ.get("DB_PATH", "attendance.db")
 
@@ -85,7 +85,9 @@ def login_required(role):
     def deco(f):
         @wraps(f)
         def w(*a, **k):
-            if session.get("role") != role: return redirect(url_for("login"))
+            if session.get("role") != role:
+                if request.path.startswith("/api/"): return jsonify(ok=False, msg="You are logged out. Log in again."), 401
+                return redirect(url_for("login"))
             return f(*a, **k)
         return w
     return deco
@@ -278,6 +280,7 @@ def scan_page():
 @app.post("/api/scan")
 @login_required("student")
 def scan():
+    received = now_slot()          # stamp arrival time first, before any database work
     if limited(("scan", session["uid"]), 40, 10): return jsonify(ok=False, msg="Slow down."), 429
     try:
         tag, sid, slot, sig = (request.get_json()["payload"]).split(".")
@@ -289,8 +292,8 @@ def scan():
         return jsonify(ok=False, msg="This class session isn't open."), 400
     if not hmac.compare_digest(sig, sign(s["secret"], sid, slot)):
         return jsonify(ok=False, msg="Invalid QR code."), 400
-    if abs(now_slot() - slot) > GRACE_SLOTS:
-        return jsonify(ok=False, msg="Code expired. Scan the live screen, not a photo."), 400
+    if abs(received - slot) > GRACE_SLOTS:
+        return jsonify(ok=False, msg=f"Code expired ({abs(received - slot) * SLOT_MS / 1000:.1f}s old). Scan the live screen, not a photo."), 400
     if not q1("SELECT 1 FROM enrollments WHERE subject_id=? AND student_id=?", s["subject_id"], session["uid"]):
         return jsonify(ok=False, msg="You're not enrolled in this subject."), 403
     if CHECK_IP and request.remote_addr != s["teacher_ip"]:
