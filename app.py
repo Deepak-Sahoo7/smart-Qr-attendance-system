@@ -161,16 +161,19 @@ def own_subject(sid):
 def upload_roster(sid):
     own_subject(sid)
     try:
-        df = pd.read_excel(request.files["file"]); df.columns = [str(c).strip().lower() for c in df.columns]
+        df = pd.read_excel(request.files["file"], dtype=str); df.columns = [str(c).strip().lower() for c in df.columns]
         col = next(c for c in df.columns if c in ("roll_no", "roll no", "roll", "roll number"))
     except Exception:
         flash("Upload an .xlsx file with a 'roll_no' column."); return redirect(url_for("teacher_home"))
-    ok = miss = 0
-    for r in df[col].astype(str).str.strip():
-        u = q1("SELECT id FROM users WHERE roll_no=? AND role='student'", r)
+    ok, missing = 0, []
+    for r in df[col].dropna().astype(str).str.strip():
+        r = r[:-2] if r.endswith(".0") else r
+        u = q1("SELECT id FROM users WHERE UPPER(roll_no)=UPPER(?) AND role='student'", r)
         if u: run("INSERT OR IGNORE INTO enrollments VALUES(?,?)", sid, u["id"]); ok += 1
-        else: miss += 1
-    flash(f"Enrolled {ok} students. {miss} roll numbers have not registered yet.")
+        else: missing.append(r)
+    msg = f"Enrolled {ok} students."
+    if missing: msg += f" Not found (not signed up yet, or typed differently): {', '.join(missing[:10])}" + (" ..." if len(missing) > 10 else "")
+    flash(msg)
     return redirect(url_for("teacher_home"))
 
 @app.post("/teacher/subject/<int:sid>/start")

@@ -180,12 +180,13 @@ class Desk(tk.Tk):
         sid = s.subject(s.sub_r); f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx")])
         if not (sid and f): return
         try:
-            df = pd.read_excel(f); df.columns = [str(x).strip().lower() for x in df.columns]
+            df = pd.read_excel(f, dtype=str); df.columns = [str(x).strip().lower() for x in df.columns]
             col = next(x for x in df.columns if x in ("roll_no", "roll no", "roll", "roll number"))
         except Exception: return messagebox.showerror("Can't read file", "Use an .xlsx file with a 'roll_no' column.")
         c = con(); ok = miss = 0
-        for v in df[col].astype(str).str.strip():
-            u = c.execute("SELECT id FROM users WHERE roll_no=? AND role='student'", (v,)).fetchone()
+        for v in df[col].dropna().astype(str).str.strip():
+            v = v[:-2] if v.endswith('.0') else v
+            u = c.execute("SELECT id FROM users WHERE UPPER(roll_no)=UPPER(?) AND role='student'", (v,)).fetchone()
             if u: c.execute("INSERT OR IGNORE INTO enrollments VALUES(?,?)", (sid, u["id"])); ok += 1
             else: miss += 1
         c.commit(); c.close(); s.load_report()
