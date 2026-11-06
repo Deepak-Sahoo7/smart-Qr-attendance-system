@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block body %}<h1>Your passkey</h1>
+{% if has %}<div class="card"><b class="P">Passkey active.</b> Every scan asks for your fingerprint, face or screen lock. If you changed phones, ask faculty to reset it.</div><a class="btn" href="/student/scan">Scan attendance</a>
+{% else %}<div class="card"><p>A passkey links your account to <b>this phone</b>. Each scan will ask for your fingerprint, face or screen lock, so nobody can scan as you from another phone.</p>
+<p class="mut">Set it up on the phone you will use in class, and only once. Only faculty can reset it.</p><button id="go">Set up passkey</button><p id="msg" role="status"></p></div>
+<script src="{{ url_for('static', filename='pk.js') }}"></script>
+<script>go.onclick=async()=>{msg.textContent='Waiting for fingerprint, face or screen lock…';const a=await api('/api/passkey/register/options');if(!a.cid){msg.textContent=a.msg;return}
+let c;try{c=await navigator.credentials.create({publicKey:creationOpts(a.options)})}catch(e){msg.textContent='Cancelled, or this device does not support passkeys.';return}
+const b=await api('/api/passkey/register/verify',{cid:a.cid,credential:cred2json(c)});msg.textContent=b.msg;if(b.ok)setTimeout(()=>location='/student',1200)}</script>{% endif %}{% endblock %}

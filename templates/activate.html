@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}<h1>Activate your account</h1><p class="mut">Use the roll number and one-time code your faculty gave you, then choose a password.</p>
+<form method="post" class="card"><label>Roll number<input name="roll_no" required autofocus></label><label>Activation code<input name="code" required autocomplete="off"></label>
+<label>New password (8+ characters)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+<button>Activate</button> <a class="btn ghost" href="/login">Back to log in</a></form>{% endblock %}

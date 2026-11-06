@@ -1,5 +1,4 @@
-{% extends "base.html" %}{% block body %}<h1>Sign up</h1><form method="post" class="card">
-<label>Full name<input name="name" required></label><label>Roll number (students)<input name="roll_no"></label>
-<label>Username<input name="username" required></label><label>Password<input name="password" type="password" minlength="6" required></label>
-{% if invite %}<label>Faculty invite code <span class="mut">(leave blank if you are a student)</span><input name="invite" autocomplete="off"></label>{% endif %}
+{% extends "base.html" %}{% block body %}<h1>Faculty sign-up</h1><form method="post" class="card">
+<label>Full name<input name="name" required></label><label>Username<input name="username" required></label>
+<label>Password<input name="password" type="password" minlength="8" required></label><label>Faculty invite code<input name="invite" required autocomplete="off"></label>
 <button>Create account</button> <a class="btn ghost" href="/login">Back to log in</a></form>{% endblock %}

@@ -1,4 +1,5 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf" content="{{ csrf_token }}">
 <title>{% block title %}QR Attendance{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
 <header><b>QR Attendance</b><nav>{% if session.role %}<span class="mut">{{ session.name }}</span><a href="/">Home</a><a href="/logout">Log out</a>{% endif %}</nav></header>
-<main>{% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}{% block body %}{% endblock %}</main></body></html>
+<main>{% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}{% block body %}{% endblock %}</main>
+<script>(()=>{const t=document.querySelector('meta[name=csrf]').content;document.querySelectorAll('form[method=post]').forEach(f=>{const i=document.createElement('input');i.type='hidden';i.name='_csrf';i.value=t;f.appendChild(i)})})()</script></body></html>

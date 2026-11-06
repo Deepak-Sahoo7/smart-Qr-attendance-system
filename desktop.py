@@ -183,14 +183,12 @@ class Desk(tk.Tk):
             df = pd.read_excel(f, dtype=str); df.columns = [str(x).strip().lower() for x in df.columns]
             col = next(x for x in df.columns if x in ("roll_no", "roll no", "roll", "roll number"))
         except Exception: return messagebox.showerror("Can't read file", "Use an .xlsx file with a 'roll_no' column.")
-        c = con(); ok = miss = 0
-        for v in df[col].dropna().astype(str).str.strip():
-            v = v[:-2] if v.endswith('.0') else v
-            u = c.execute("SELECT id FROM users WHERE UPPER(roll_no)=UPPER(?) AND role='student'", (v,)).fetchone()
-            if u: c.execute("INSERT OR IGNORE INTO enrollments VALUES(?,?)", (sid, u["id"])); ok += 1
-            else: miss += 1
-        c.commit(); c.close(); s.load_report()
-        messagebox.showinfo("Roster uploaded", f"Enrolled {ok} students. {miss} roll numbers haven't signed up on the student app yet.")
+        with A.app.app_context(): r = A.import_roster(sid, df)
+        s.load_report()
+        if r["codes"]:
+            f2 = filedialog.asksaveasfilename(title="Save activation codes for new students", defaultextension=".xlsx", initialfile="activation_codes.xlsx")
+            if f2: pd.DataFrame(r["codes"], columns=["roll_no", "name", "activation_code"]).to_excel(f2, index=False)
+        messagebox.showinfo("Roster uploaded", f"Enrolled {r['enrolled']} students. {len(r['codes'])} new activation codes created.")
 
     def quit_app(s):
         if s.sid and messagebox.askyesno("Attendance is live", "End the live session before closing?"):
