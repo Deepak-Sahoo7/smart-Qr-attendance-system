@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block body %}<a href="/teacher" class="mut">&larr; Subjects</a><h1>{{ s.name }}: students</h1>
+<div class="card"><table style="width:100%"><tr><th align="left">Roll no</th><th align="left">Name</th><th align="left">Status</th><th></th></tr>
+{% for r in rows %}<tr><td>{{ r.roll_no }}</td><td>{{ r.name }}</td>
+<td>{% if not r.active %}<span class="A">Not activated</span>{% elif on and not r.n_keys %}<span class="A">No passkey</span>{% else %}<span class="P">Ready</span>{% endif %}</td>
+<td>{% if r.n_keys %}<form method="post" action="/teacher/student/{{ r.id }}/reset" onsubmit="return confirm('Remove this student\'s passkey?')"><button class="ghost">Reset passkey</button></form>{% endif %}</td></tr>{% endfor %}</table></div>{% endblock %}

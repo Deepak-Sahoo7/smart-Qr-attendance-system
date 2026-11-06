@@ -30,3 +30,16 @@ and show the QR full-screen. Students: /register, log in, Scan.
     FACULTY_USER=prof FACULTY_PASS=changeme python app.py          # web server on :5000
     pip install -r requirements-desktop.txt
     FACULTY_USER=prof FACULTY_PASS=changeme python desktop.py      # faculty desktop app (LAN mode, own server)
+
+## Security model (Phase 1 + 2)
+- **Roster first:** faculty upload a roster (`roll_no`, optional `name`). New students get a one-time activation code, shown once
+  on the upload result page. Students activate at `/activate` (roll number + code + new password); username = roll number.
+  There is no open student sign-up.
+- **Passkeys:** each student registers one passkey (fingerprint / face / screen lock) on their own phone. Every scan is two steps:
+  `/api/scan/begin` (QR fresh, student enrolled -> one-time challenge) and `/api/scan/finish` (passkey signature over that challenge).
+  A stolen password is useless without that phone. Only faculty can reset a passkey (Subjects -> Students & passkeys).
+- **Integrity:** CSRF tokens on every POST, strict security headers, DB-backed rate limits, single-use challenges bound to the user,
+  8-hour sessions, and a hash-chained audit log (`/teacher/audit.json` shows `chain_intact`).
+- **Passkeys need a real domain over HTTPS** (e.g. your onrender.com address). They do not work on a LAN IP, so local desktop mode
+  runs cookie-only (`REQUIRE_PASSKEY=0`). Set `RP_ID` to your hostname if Render's hostname is not detected.
+- **Enrol passkeys in class** (first enrolment is the weakest moment: whoever holds the account then owns the passkey).

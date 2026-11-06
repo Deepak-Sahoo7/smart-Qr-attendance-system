@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}<h1>Roster uploaded</h1><p>{{ r.enrolled }} students enrolled.</p>
+{% if not r.name_col %}<div class="flash">No name column found, so roll numbers are shown as names. Add a column titled <b>Name</b> (or <b>Student Name</b>) and upload again to fix them.</div>{% endif %}
+{% for n in r.notes %}<div class="flash">{{ n }}</div>{% endfor %}
+{% if r.codes %}<div class="card"><b>Activation codes are shown only once.</b> Give each student their own code (print this page or download the CSV).
+<table id="t" style="width:100%;margin:12px 0"><tr><th align="left">Roll no</th><th align="left">Name</th><th align="left">Code</th></tr>
+{% for c in r.codes %}<tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td><td><code>{{ c[2] }}</code></td></tr>{% endfor %}</table>
+<button id="dl">Download CSV</button> <button class="ghost" onclick="print()">Print</button></div>
+<script>dl.onclick=()=>{const rows=[...document.querySelectorAll('#t tr')].map(r=>[...r.cells].map(c=>'"'+c.textContent.replace(/"/g,'""')+'"').join(','));
+const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download='activation_codes.csv';a.click()}</script>
+{% else %}<p class="mut">Everyone in the file already has an active account.</p>{% endif %}<a class="btn ghost" href="/teacher">Back to subjects</a>{% endblock %}
