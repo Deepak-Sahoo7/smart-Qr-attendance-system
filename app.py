@@ -162,19 +162,30 @@ def new_code(): return "".join(secrets.choice("ABCDEFGHJKMNPQRSTUVWXYZ23456789")
 def code_hash(roll, code): return hmac.new(app.secret_key.encode(), f"{roll.upper()}|{code.upper()}".encode(), hashlib.sha256).hexdigest()
 
 def import_roster(sid, df):
-    """Enroll roll numbers. Unknown/pending students get an account + one-time activation code (shown once)."""
+    """Enroll roll numbers. Students without an active account get one plus a one-time activation code
+    (taken from an optional 'code' column, otherwise random). Names come from any column containing 'name'."""
     df = df.copy(); df.columns = [str(c).strip().lower() for c in df.columns]
     col = next(c for c in df.columns if c in ("roll_no", "roll no", "roll", "roll number"))
-    out = dict(enrolled=0, codes=[])
+    ncol = next((c for c in df.columns if "name" in c), None)
+    ccol = next((c for c in df.columns if c.replace(" ", "_") in ("code", "activation_code")), None)
+    counts = df[ccol].dropna().astype(str).str.strip().str.upper().value_counts() if ccol else {}
+    out = dict(enrolled=0, codes=[], notes=[], name_col=ncol is not None)
     for i, roll in df[col].items():
         if pd.isna(roll): continue
         roll = str(roll).strip(); roll = roll[:-2] if roll.endswith(".0") else roll
         if not roll: continue
-        nm = str(df["name"][i]).strip() if "name" in df.columns and not pd.isna(df["name"][i]) else roll
+        nm = str(df[ncol][i]).strip() if ncol and not pd.isna(df[ncol][i]) and str(df[ncol][i]).strip() else roll
+        given = None
+        if ccol and not pd.isna(df[ccol][i]) and str(df[ccol][i]).strip():
+            g = str(df[ccol][i]).strip()
+            if len(g) >= 6 and g.isalnum() and counts.get(g.upper(), 0) == 1: given = g
+            else: out["notes"].append(f"{roll}: your custom code was not used (it needs 6+ letters or digits and must differ for every student), so a random one was created.")
         u = q1("SELECT * FROM users WHERE UPPER(roll_no)=UPPER(?) AND role='student'", roll)
         if not u or not u["pw"]:
-            code = new_code(); h = code_hash(roll, code)
-            if u: run("UPDATE users SET act_hash=? WHERE id=?", h, u["id"]); uid = u["id"]; nm = u["name"]
+            code = given or new_code(); h = code_hash(roll, code)
+            if u:
+                nm = nm if nm != roll else u["name"]; uid = u["id"]
+                run("UPDATE users SET act_hash=?, name=? WHERE id=?", h, nm, uid)
             else:
                 try: uid = run("INSERT INTO users(username,pw,name,role,roll_no,act_hash) VALUES(?,?,?,?,?,?)", roll.lower(), None, nm, "student", roll, h, ret=True).lastrowid
                 except DBERR: db().rollback(); uid = run("INSERT INTO users(username,pw,name,role,roll_no,act_hash) VALUES(?,?,?,?,?,?)", f"{roll.lower()}-{secrets.token_hex(2)}", None, nm, "student", roll, h, ret=True).lastrowid

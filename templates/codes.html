@@ -1,4 +1,6 @@
 {% extends "base.html" %}{% block body %}<h1>Roster uploaded</h1><p>{{ r.enrolled }} students enrolled.</p>
+{% if not r.name_col %}<div class="flash">No name column found, so roll numbers are shown as names. Add a column titled <b>Name</b> (or <b>Student Name</b>) and upload again to fix them.</div>{% endif %}
+{% for n in r.notes %}<div class="flash">{{ n }}</div>{% endfor %}
 {% if r.codes %}<div class="card"><b>Activation codes are shown only once.</b> Give each student their own code (print this page or download the CSV).
 <table id="t" style="width:100%;margin:12px 0"><tr><th align="left">Roll no</th><th align="left">Name</th><th align="left">Code</th></tr>
 {% for c in r.codes %}<tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td><td><code>{{ c[2] }}</code></td></tr>{% endfor %}</table>
